@@ -1,18 +1,18 @@
 package com.ayush.redditclone.service;
 
 import com.ayush.redditclone.dto.RegisterRequest;
-import com.ayush.redditclone.model.NotificationEmail;
-import com.ayush.redditclone.model.User;
-import com.ayush.redditclone.model.VerificationToken;
-import com.ayush.redditclone.repository.UserRepository;
-import com.ayush.redditclone.repository.VerificationTokenRepository;
+import com.ayush.redditclone.exceptions.SpringRedditException;
+import com.ayush.redditclone.model.*;
+import com.ayush.redditclone.repository.*;
+
 import lombok.AllArgsConstructor;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @AllArgsConstructor
@@ -50,5 +50,20 @@ public class AuthService {
 
         verificationTokenRepository.save(verificationToken);
         return token;
+    }
+
+    public void verifyAccount(String token) {
+        Optional<VerificationToken> verificationToken = verificationTokenRepository.findByToken(token);
+        verificationToken.orElseThrow(() -> new SpringRedditException("Invalid Token"));
+        fetchUserAndEnable(verificationToken.get());
+    }
+
+    @Transactional
+    private void fetchUserAndEnable(VerificationToken verificationToken) {
+        String username = verificationToken.getUser().getUsername();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new SpringRedditException("User not found with name :- " + username));
+        user.setEnabled(true);
+        userRepository.save(user);
     }
 }
